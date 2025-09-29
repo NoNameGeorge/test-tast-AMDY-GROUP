@@ -12,81 +12,21 @@ import { UsersTableError } from '@/components/users/UsersTableError';
 import { UsersTableLoading } from '@/components/users/UsersTableLoading';
 import { UsersTableEmpty } from '@/components/users/UsersTableEmpty';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { fetchUsers, refreshUser, deleteUser } from '@/api/users';
-import { SortBy, PageSize, SORT_OPTIONS, PAGE_SIZE_OPTIONS, UsersResponse } from '@/types/api';
+import { fetchUsers } from '@/api/users';
+import { SORT_OPTIONS, PAGE_SIZE_OPTIONS, UsersResponse } from '@/types/api';
 import { User } from '@/types/user';
 import { UsersProvider, useUsersContext } from '@/contexts/UsersContext';
+import { useUsersHandlers } from '@/hooks/useUsersHandlers';
+import { useUsersActions } from '@/hooks/useUsersActions';
+import { useUsersURLSync } from '@/hooks/useUsersURLSync';
 
 function UsersPageContent() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
     const queryClient = useQueryClient();
-    const { filters, actions } = useUsersContext();
+    const { filters } = useUsersContext();
+    const handlers = useUsersHandlers();
+    const actions = useUsersActions();
+    useUsersURLSync();
 
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        actions.setSearch(e.target.value);
-    };
-
-    const handleSortByChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        actions.setSortBy(e.target.value as SortBy);
-    };
-
-    const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        actions.setPageSize(Number(e.target.value) as PageSize);
-    };
-
-    const handleSortDirectionToggle = () => {
-        actions.setDesc(!filters.desc);
-    };
-
-    const handleReload = () => {
-        queryClient.invalidateQueries({ queryKey: ['users'] });
-    };
-
-    const handleDebug = () => {
-        console.log(JSON.stringify(usersQuery.data));
-    };
-
-    const handleResetFilters = () => {
-        actions.setSearch('');
-        actions.setCurrentPage(1);
-        actions.setSortBy('email');
-        actions.setDesc(false);
-        actions.setPageSize(20);
-        queryClient.invalidateQueries({ queryKey: ['users'] });
-        router.replace('/users', { scroll: false });
-    };
-
-    const handleClearSearch = () => {
-        actions.setSearch('');
-    };
-
-    const handlePreviousPage = () => {
-        actions.setCurrentPage(Math.max(filters.currentPage - 1, 1));
-    };
-
-    const handleNextPage = () => {
-        actions.setCurrentPage(Math.min(filters.currentPage + 1, usersQuery.data?.totalPages || 1));
-    };
-
-    const handleRefreshUser = async (userId: string) => {
-        try {
-            await refreshUser(userId);
-            queryClient.invalidateQueries({ queryKey: ['users'] });
-        } catch (error) {
-            console.error('Ошибка при обновлении пользователя:', error);
-        }
-    };
-
-    const handleDeleteUser = async (userId: string) => {
-        try {
-            await deleteUser(userId);
-            queryClient.invalidateQueries({ queryKey: ['users'] });
-        } catch (error) {
-            console.error('Ошибка при удалении пользователя:', error);
-        }
-    };
 
     const queryParams = React.useMemo(() => ({
         limit: filters.pageSize,
@@ -96,26 +36,6 @@ function UsersPageContent() {
         page: filters.currentPage
     }), [filters.pageSize, filters.debouncedSearch, filters.sortBy, filters.desc, filters.currentPage]);
 
-    const updateURL = (params: {
-        search?: string;
-        sortBy?: string;
-        desc?: boolean;
-        pageSize?: number;
-        page?: number;
-    }) => {
-        const newSearchParams = new URLSearchParams(searchParams.toString());
-
-        if (params.search !== undefined) {
-            if (params.search) newSearchParams.set('search', params.search);
-            else newSearchParams.delete('search');
-        }
-        if (params.sortBy !== undefined) newSearchParams.set('sortBy', params.sortBy);
-        if (params.desc !== undefined) newSearchParams.set('desc', params.desc.toString());
-        if (params.pageSize !== undefined) newSearchParams.set('limit', params.pageSize.toString());
-        if (params.page !== undefined) newSearchParams.set('page', params.page.toString());
-
-        router.replace(`/users?${newSearchParams.toString()}`, { scroll: false });
-    };
 
     const usersQuery = useQuery<UsersResponse>({
         queryKey: ['users', queryParams],
@@ -126,23 +46,7 @@ function UsersPageContent() {
 
     useEffect(() => {
         queryClient.invalidateQueries({ queryKey: ['users'] });
-    }, [queryParams, filters.currentPage, queryClient]);
-
-    useEffect(() => {
-        updateURL({ search: filters.debouncedSearch });
-    }, [filters.debouncedSearch]);
-
-    useEffect(() => {
-        updateURL({ sortBy: filters.sortBy, desc: filters.desc });
-    }, [filters.sortBy, filters.desc]);
-
-    useEffect(() => {
-        updateURL({ pageSize: filters.pageSize });
-    }, [filters.pageSize]);
-
-    useEffect(() => {
-        updateURL({ page: filters.currentPage });
-    }, [filters.currentPage]);
+    }, [queryParams, queryClient]);
 
     const columns = React.useMemo(() => {
         const columnHelper = createColumnHelper<User>();
@@ -188,14 +92,14 @@ function UsersPageContent() {
                     return (
                         <div className="flex gap-2">
                             <Button
-                                onClick={() => handleRefreshUser(user.id)}
+                                onClick={() => actions.refreshUser(user.id)}
                                 disabled={!canEdit}
                             >
                                 Refresh
                             </Button>
                             <Button
                                 variant="destructive"
-                                onClick={() => handleDeleteUser(user.id)}
+                                onClick={() => actions.deleteUser(user.id)}
                                 disabled={!canEdit}
                             >
                                 Delete
@@ -225,20 +129,20 @@ function UsersPageContent() {
                 <Input
                     placeholder="Поиск по email"
                     value={filters.search}
-                    onChange={handleSearchChange}
+                    onChange={handlers.search}
                     className="w-64"
                 />
                 <Select
                     value={filters.sortBy}
-                    onChange={handleSortByChange}
+                    onChange={handlers.sortBy}
                     options={SORT_OPTIONS}
                 />
-                <Button onClick={handleSortDirectionToggle}>
+                <Button onClick={handlers.sortToggle}>
                     {filters.desc ? '↓ По убыванию' : '↑ По возрастанию'}
                 </Button>
                 <Select
                     value={filters.pageSize.toString()}
-                    onChange={handlePageSizeChange}
+                    onChange={handlers.pageSize}
                     options={PAGE_SIZE_OPTIONS.map(size => ({
                         value: size.toString(),
                         label: `${size}/страница`
@@ -251,11 +155,11 @@ function UsersPageContent() {
             ) : usersQuery.error ? (
                 <UsersTableError
                     error={usersQuery.error}
-                    onReload={handleReload}
-                    onClearSearch={handleClearSearch}
+                    onReload={actions.reload}
+                    onClearSearch={handlers.clearSearch}
                 />
             ) : usersQuery.data?.users?.length === 0 ? (
-                <UsersTableEmpty onResetFilters={handleResetFilters} />
+                <UsersTableEmpty onResetFilters={actions.resetFilters} />
             ) : (
                 <div className="rounded-xl border">
                     <table className="w-full text-sm">
@@ -286,8 +190,8 @@ function UsersPageContent() {
             )}
 
             <div className="mt-4 flex gap-2">
-                <Button onClick={handleReload}>Reload</Button>
-                <Button onClick={handleDebug}>Debug</Button>
+                <Button onClick={actions.reload}>Reload</Button>
+                <Button onClick={() => actions.debug(usersQuery.data)}>Debug</Button>
             </div>
 
             {usersQuery?.data && !usersQuery.isLoading && !usersQuery.error && (
@@ -296,8 +200,8 @@ function UsersPageContent() {
                     totalPages={usersQuery.data.totalPages}
                     total={usersQuery.data.total}
                     pageSize={filters.pageSize}
-                    onPreviousPage={handlePreviousPage}
-                    onNextPage={handleNextPage}
+                    onPreviousPage={handlers.previousPage}
+                    onNextPage={() => handlers.nextPage(usersQuery.data.totalPages)}
                 />
             )}
         </div>
