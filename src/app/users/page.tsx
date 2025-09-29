@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useDebounce } from '@/hooks/useDebounce';
 
 type FetchUsersParams = {
-    limit: number;
+    limit: PageSize;
     search: string;
     sortBy: SortBy;
     desc: boolean;
@@ -26,7 +26,8 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
     { value: 'role', label: 'Роль' }
 ];
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+type PageSize = typeof PAGE_SIZE_OPTIONS[number];
 
 type User = {
     id: string;
@@ -64,7 +65,10 @@ export default function UsersPage() {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
 
-    const [pageSize, setPageSize] = useState(() => parseInt(searchParams.get('limit') || '20'));
+    const [pageSize, setPageSize] = useState<PageSize>(() => {
+        const limit = parseInt(searchParams.get('limit') || '20');
+        return PAGE_SIZE_OPTIONS.includes(limit as PageSize) ? (limit as PageSize) : 20;
+    });
     const [search, setSearch] = useState(() => searchParams.get('search') || '');
     const [sortBy, setSortBy] = useState<SortBy>(() =>
         (searchParams.get('sortBy') as SortBy) || 'email'
@@ -280,7 +284,7 @@ export default function UsersPage() {
                 <Button onClick={() => setDesc((d) => !d)}>{desc ? 'Desc' : 'Asc'}</Button>
                 <select
                     value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    onChange={(e) => setPageSize(Number(e.target.value) as PageSize)}
                     className="border px-2 py-2 rounded-md"
                 >
                     {PAGE_SIZE_OPTIONS.map((size) => (
