@@ -7,9 +7,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Pagination } from '@/components/ui/pagination';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useDebounce } from '@/hooks/useDebounce';
 import { fetchUsers, refreshUser, deleteUser } from '@/api/users';
 import { SortBy, PageSize, SORT_OPTIONS, PAGE_SIZE_OPTIONS, UsersResponse } from '@/types/api';
 import { User } from '@/types/user';
@@ -349,28 +349,14 @@ function UsersPageContent() {
             </div>
 
             {usersQuery?.data && !usersQuery.isLoading && !usersQuery.error && (
-                <div className="mt-6 flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
-                        Показано {((filters.currentPage - 1) * filters.pageSize) + 1}-{Math.min(filters.currentPage * filters.pageSize, usersQuery.data.total)} из {usersQuery.data.total} пользователей
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            onClick={handlePreviousPage}
-                            disabled={filters.currentPage === 1}
-                        >
-                            Назад
-                        </Button>
-                        <span className="px-3 py-1 text-sm">
-                            Страница {filters.currentPage} из {usersQuery.data.totalPages}
-                        </span>
-                        <Button
-                            onClick={handleNextPage}
-                            disabled={filters.currentPage >= usersQuery.data.totalPages}
-                        >
-                            Вперед
-                        </Button>
-                    </div>
-                </div>
+                <Pagination
+                    currentPage={filters.currentPage}
+                    totalPages={usersQuery.data.totalPages}
+                    total={usersQuery.data.total}
+                    pageSize={filters.pageSize}
+                    onPreviousPage={handlePreviousPage}
+                    onNextPage={handleNextPage}
+                />
             )}
         </div>
     );
