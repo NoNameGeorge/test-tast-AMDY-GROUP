@@ -1,52 +1,27 @@
 'use client';
 
 import * as React from 'react';
-import { useEffect, useState } from 'react';
 import { createColumnHelper, useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { Pagination } from '@/components/ui/pagination';
 import { UsersTableError } from '@/components/users/UsersTableError';
 import { UsersTableLoading } from '@/components/users/UsersTableLoading';
 import { UsersTableEmpty } from '@/components/users/UsersTableEmpty';
+import { UsersTableFilter } from '@/components/users/UsersTableFilter';
 import Link from 'next/link';
-import { fetchUsers } from '@/api/users';
-import { SORT_OPTIONS, PAGE_SIZE_OPTIONS, UsersResponse } from '@/types/api';
 import { User } from '@/types/user';
 import { UsersProvider, useUsersContext } from '@/contexts/UsersContext';
 import { useUsersHandlers } from '@/hooks/useUsersHandlers';
 import { useUsersActions } from '@/hooks/useUsersActions';
 import { useUsersURLSync } from '@/hooks/useUsersURLSync';
+import { useUsersQuery } from '@/hooks/useUsersQuery';
 
 function UsersPageContent() {
-    const queryClient = useQueryClient();
     const { filters } = useUsersContext();
     const handlers = useUsersHandlers();
     const actions = useUsersActions();
+    const usersQuery = useUsersQuery();
     useUsersURLSync();
-
-
-    const queryParams = React.useMemo(() => ({
-        limit: filters.pageSize,
-        search: filters.debouncedSearch,
-        sortBy: filters.sortBy,
-        desc: filters.desc,
-        page: filters.currentPage
-    }), [filters.pageSize, filters.debouncedSearch, filters.sortBy, filters.desc, filters.currentPage]);
-
-
-    const usersQuery = useQuery<UsersResponse>({
-        queryKey: ['users', queryParams],
-        queryFn: () => fetchUsers(queryParams),
-        refetchOnWindowFocus: true,
-        retry: 3,
-    });
-
-    useEffect(() => {
-        queryClient.invalidateQueries({ queryKey: ['users'] });
-    }, [queryParams, queryClient]);
 
     const columns = React.useMemo(() => {
         const columnHelper = createColumnHelper<User>();
@@ -109,7 +84,7 @@ function UsersPageContent() {
                 },
             }),
         ];
-    }, [queryClient]);
+    }, []);
 
     const data: User[] = usersQuery.data?.users || [];
 
@@ -120,35 +95,9 @@ function UsersPageContent() {
         debugTable: process.env.NODE_ENV !== 'production',
     });
 
-
-
-
     return (
         <div className="p-6">
-            <div className="mb-4 flex items-center gap-2">
-                <Input
-                    placeholder="Поиск по email"
-                    value={filters.search}
-                    onChange={handlers.search}
-                    className="w-64"
-                />
-                <Select
-                    value={filters.sortBy}
-                    onChange={handlers.sortBy}
-                    options={SORT_OPTIONS}
-                />
-                <Button onClick={handlers.sortToggle}>
-                    {filters.desc ? '↓ По убыванию' : '↑ По возрастанию'}
-                </Button>
-                <Select
-                    value={filters.pageSize.toString()}
-                    onChange={handlers.pageSize}
-                    options={PAGE_SIZE_OPTIONS.map(size => ({
-                        value: size.toString(),
-                        label: `${size}/страница`
-                    }))}
-                />
-            </div>
+            <UsersTableFilter />
 
             {usersQuery.isLoading ? (
                 <UsersTableLoading />
