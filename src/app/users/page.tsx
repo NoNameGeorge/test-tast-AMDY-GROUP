@@ -6,6 +6,7 @@ import { createColumnHelper, useReactTable, getCoreRowModel, flexRender } from '
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 // Типизация параметров для fetchUsers
 type FetchUsersParams = {
@@ -56,16 +57,44 @@ async function fetchUsers(params: FetchUsersParams) {
 }
 
 export default function UsersPage() {
-    const [pageSize, setPageSize] = useState(20);
-    const [search, setSearch] = useState('');
-    const [sortBy, setSortBy] = useState<'email' | 'createdAt' | 'role'>('email');
-    const [desc, setDesc] = useState(false);
-    const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const queryClient = useQueryClient();
+
+    // Инициализация состояния из URL параметров
+    const [pageSize, setPageSize] = useState(() => parseInt(searchParams.get('limit') || '20'));
+    const [search, setSearch] = useState(() => searchParams.get('search') || '');
+    const [sortBy, setSortBy] = useState<'email' | 'createdAt' | 'role'>(() =>
+        (searchParams.get('sortBy') as 'email' | 'createdAt' | 'role') || 'email'
+    );
+    const [desc, setDesc] = useState(() => searchParams.get('desc') === 'true');
+    const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(() => parseInt(searchParams.get('page') || '1'));
 
     // Debounce для поиска
     const debouncedSearch = useDebounce(search, 300);
+
+    // Функция для обновления URL
+    const updateURL = (params: {
+        search?: string;
+        sortBy?: string;
+        desc?: boolean;
+        pageSize?: number;
+        page?: number;
+    }) => {
+        const newSearchParams = new URLSearchParams(searchParams.toString());
+
+        if (params.search !== undefined) {
+            if (params.search) newSearchParams.set('search', params.search);
+            else newSearchParams.delete('search');
+        }
+        if (params.sortBy !== undefined) newSearchParams.set('sortBy', params.sortBy);
+        if (params.desc !== undefined) newSearchParams.set('desc', params.desc.toString());
+        if (params.pageSize !== undefined) newSearchParams.set('limit', params.pageSize.toString());
+        if (params.page !== undefined) newSearchParams.set('page', params.page.toString());
+
+        router.replace(`/users?${newSearchParams.toString()}`, { scroll: false });
+    };
 
     const usersQuery = useQuery({
         queryKey: ['users', { limit: pageSize, search: debouncedSearch, sortBy, desc, page: currentPage }],
@@ -82,6 +111,23 @@ export default function UsersPage() {
     useEffect(() => {
         queryClient.invalidateQueries({ queryKey: ['users'] });
     }, [debouncedSearch, sortBy, desc, pageSize, currentPage, queryClient]);
+
+    // Обновление URL при изменении параметров
+    useEffect(() => {
+        updateURL({ search: debouncedSearch });
+    }, [debouncedSearch]);
+
+    useEffect(() => {
+        updateURL({ sortBy, desc });
+    }, [sortBy, desc]);
+
+    useEffect(() => {
+        updateURL({ pageSize });
+    }, [pageSize]);
+
+    useEffect(() => {
+        updateURL({ page: currentPage });
+    }, [currentPage]);
 
     const columnHelper = createColumnHelper<User>();
     const columns = [
@@ -243,7 +289,11 @@ export default function UsersPage() {
                     <Button onClick={() => {
                         setSearch('');
                         setCurrentPage(1);
+                        setSortBy('email');
+                        setDesc(false);
+                        setPageSize(20);
                         queryClient.invalidateQueries({ queryKey: ['users'] });
+                        router.replace('/users', { scroll: false });
                     }}>
                         Сбросить фильтры
                     </Button>
