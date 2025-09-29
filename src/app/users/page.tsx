@@ -8,13 +8,16 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-// Типизация параметров для fetchUsers
 type FetchUsersParams = {
     limit: number;
     search: string;
-    sortBy: 'email' | 'createdAt' | 'role';
+    sortBy: SortBy;
     desc: boolean;
 };
+
+type SortBy = 'email' | 'createdAt' | 'role';
+type UserRole = 'admin' | 'editor' | 'viewer';
+type UserPlan = 'free' | 'pro' | 'enterprise' | null;
 
 // Хук для debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -36,9 +39,9 @@ function useDebounce<T>(value: T, delay: number): T {
 type User = {
     id: string;
     email: string;
-    role: 'admin' | 'editor' | 'viewer' | string;
+    role: UserRole;
     createdAt: string;
-    plan?: 'free' | 'pro' | 'enterprise' | null;
+    plan: UserPlan;
 };
 
 async function fetchUsers(params: FetchUsersParams) {
@@ -61,20 +64,16 @@ export default function UsersPage() {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
 
-    // Инициализация состояния из URL параметров
     const [pageSize, setPageSize] = useState(() => parseInt(searchParams.get('limit') || '20'));
     const [search, setSearch] = useState(() => searchParams.get('search') || '');
-    const [sortBy, setSortBy] = useState<'email' | 'createdAt' | 'role'>(() =>
-        (searchParams.get('sortBy') as 'email' | 'createdAt' | 'role') || 'email'
+    const [sortBy, setSortBy] = useState<SortBy>(() =>
+        (searchParams.get('sortBy') as SortBy) || 'email'
     );
     const [desc, setDesc] = useState(() => searchParams.get('desc') === 'true');
-    const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(() => parseInt(searchParams.get('page') || '1'));
 
-    // Debounce для поиска
     const debouncedSearch = useDebounce(search, 300);
 
-    // Функция для обновления URL
     const updateURL = (params: {
         search?: string;
         sortBy?: string;
@@ -101,11 +100,6 @@ export default function UsersPage() {
         queryFn: () => fetchUsers({ limit: pageSize, search: debouncedSearch, sortBy, desc }),
         refetchOnWindowFocus: true,
         retry: 3,
-        // onSuccess: (payload: any) => {
-        //     if (payload?.data?.length === 1) {
-        //         setSelectedRowId(payload.data[0].id);
-        //     }
-        // },
     });
 
     useEffect(() => {
@@ -136,9 +130,11 @@ export default function UsersPage() {
             cell: (info) => {
                 const u = info.row.original;
                 return (
-                    <div onClick={() => setSelectedRowId(u.id)}>
-                        <Link href={`/users/${u.id}`}>{u.email}</Link>
-                        <div>{new Date(u.createdAt).toLocaleString()}</div>
+                    <div>
+                        <Link href={`/users/${u.id}`} className="text-blue-600 hover:underline">
+                            {u.email}
+                        </Link>
+                        <div className="text-sm text-gray-500">{new Date(u.createdAt).toLocaleString()}</div>
                     </div>
                 );
             },
@@ -149,7 +145,16 @@ export default function UsersPage() {
         }),
         columnHelper.accessor('plan', {
             header: 'Plan',
-            cell: (info) => info.getValue() || '—',
+            cell: (info) => {
+                const plan = info.getValue();
+                return plan ? (
+                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">
+                        {plan}
+                    </span>
+                ) : (
+                    <span className="text-gray-400">—</span>
+                );
+            },
         }),
         columnHelper.display({
             id: 'actions',
@@ -314,7 +319,7 @@ export default function UsersPage() {
                         </thead>
                         <tbody>
                             {table.getRowModel().rows.map((row) => (
-                                <tr key={row.id} className={row.original.id === selectedRowId ? 'bg-muted' : ''}>
+                                <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                                     {row.getVisibleCells().map((cell) => (
                                         <td key={cell.id} className="p-3 border-t">
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
