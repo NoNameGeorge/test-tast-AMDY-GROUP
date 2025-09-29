@@ -1,1 +1,0 @@
-# test-tast-AMDY-GROUP
