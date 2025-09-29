@@ -7,6 +7,31 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
+// Типизация параметров для fetchUsers
+type FetchUsersParams = {
+    limit: number;
+    search: string;
+    sortBy: 'email' | 'createdAt' | 'role';
+    desc: boolean;
+};
+
+// Хук для debounce
+function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+
+    return debouncedValue;
+}
+
 type User = {
     id: string;
     email: string;
@@ -15,16 +40,22 @@ type User = {
     plan?: 'free' | 'pro' | 'enterprise' | null;
 };
 
-async function fetchUsers(params: any) {
-    const q = new URLSearchParams(params).toString()
+async function fetchUsers(params: FetchUsersParams) {
+    const q = new URLSearchParams({
+        limit: params.limit.toString(),
+        search: params.search,
+        sortBy: params.sortBy,
+        desc: params.desc.toString()
+    }).toString();
+
     const res = await fetch('/api/users?' + q, { cache: 'no-store' });
     if (!res.ok) {
-      throw new Error('Failed to load');
+        throw new Error('Failed to load');
     }
     return res.json();
-  }
-  
-  export default function UsersPage() {
+}
+
+export default function UsersPage() {
     const [pageSize, setPageSize] = useState(20);
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState<'email' | 'createdAt' | 'role'>('email');
@@ -32,9 +63,12 @@ async function fetchUsers(params: any) {
     const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
     const queryClient = useQueryClient();
 
+    // Debounce для поиска
+    const debouncedSearch = useDebounce(search, 300);
+
     const usersQuery = useQuery({
-        queryKey: ['users'],
-        queryFn: () => fetchUsers({ limit: pageSize, search, sortBy, desc }),
+        queryKey: ['users', { limit: pageSize, search: debouncedSearch, sortBy, desc }],
+        queryFn: () => fetchUsers({ limit: pageSize, search: debouncedSearch, sortBy, desc }),
         refetchOnWindowFocus: true,
         retry: 3,
         onSuccess: (payload: any) => {
@@ -46,7 +80,7 @@ async function fetchUsers(params: any) {
 
     useEffect(() => {
         queryClient.invalidateQueries({ queryKey: ['users'] });
-    }, [search, sortBy, desc, pageSize, queryClient]);
+    }, [debouncedSearch, sortBy, desc, pageSize, queryClient]);
 
     const columnHelper = createColumnHelper<User>();
     const columns = [
