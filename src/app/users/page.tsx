@@ -148,12 +148,64 @@ export default function UsersPage() {
 
     const isTouch = typeof window !== 'undefined' && 'ontouchstart' in window;
 
-    if (usersQuery.isLoading) {
-        return <div>Loading...</div>;
-    }
-    if (usersQuery.error) {
-        return <div role="alert">Something went wrong</div>;
-    }
+    // Скелетон для загрузки
+    const LoadingSkeleton = () => (
+        <div className="rounded-xl border">
+            <div className="p-3 bg-gray-50">
+                <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+            </div>
+            {[...Array(5)].map((_, i) => (
+                <div key={i} className="p-3 border-t">
+                    <div className="flex space-x-4">
+                        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/6"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/6"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/6"></div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+
+    // Компонент ошибки
+    const ErrorComponent = ({ error }: { error: any }) => {
+        const isNotFound = error?.message?.includes('404') || error?.message?.includes('not found');
+        const isServerError = error?.message?.includes('500') || error?.message?.includes('server');
+
+        return (
+            <div className="rounded-xl border p-8 text-center">
+                <div className="text-red-600 mb-4">
+                    {isNotFound ? (
+                        <>
+                            <h3 className="text-lg font-semibold mb-2">Пользователи не найдены</h3>
+                            <p className="text-sm">Попробуйте изменить параметры поиска</p>
+                        </>
+                    ) : isServerError ? (
+                        <>
+                            <h3 className="text-lg font-semibold mb-2">Что-то пошло не так</h3>
+                            <p className="text-sm">Проблема на сервере, попробуйте позже</p>
+                        </>
+                    ) : (
+                        <>
+                            <h3 className="text-lg font-semibold mb-2">Ошибка загрузки</h3>
+                            <p className="text-sm">Не удалось загрузить данные</p>
+                        </>
+                    )}
+                </div>
+                <div className="flex gap-2 justify-center">
+                    {isNotFound ? (
+                        <Button onClick={() => setSearch('')}>
+                            Очистить фильтр
+                        </Button>
+                    ) : (
+                        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })}>
+                            Попробовать еще
+                        </Button>
+                    )}
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="p-6">
@@ -178,39 +230,59 @@ export default function UsersPage() {
                 {isTouch && <span className="text-xs opacity-60">Touch mode</span>}
             </div>
 
-            <div className="rounded-xl border">
-                <table className="w-full text-sm">
-                    <thead>
-                        {table.getHeaderGroups().map((hg) => (
-                            <tr key={hg.id}>
-                                {hg.headers.map((h) => (
-                                    <th key={h.id} className="text-left p-3">
-                                        {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-                                    </th>
-                                ))}
-                            </tr>
-                        ))}
-                    </thead>
-                    <tbody>
-                        {table.getRowModel().rows.map((row) => (
-                            <tr key={row.id} className={row.original.id === selectedRowId ? 'bg-muted' : ''}>
-                                {row.getVisibleCells().map((cell) => (
-                                    <td key={cell.id} className="p-3 border-t">
-                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </td>
-                                ))}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            {usersQuery.isLoading ? (
+                <LoadingSkeleton />
+            ) : usersQuery.error ? (
+                <ErrorComponent error={usersQuery.error} />
+            ) : usersQuery.data?.data?.length === 0 ? (
+                <div className="rounded-xl border p-8 text-center">
+                    <div className="text-gray-600 mb-4">
+                        <h3 className="text-lg font-semibold mb-2">Пользователи не найдены</h3>
+                        <p className="text-sm">Попробуйте изменить параметры поиска или фильтры</p>
+                    </div>
+                    <Button onClick={() => {
+                        setSearch('');
+                        setCurrentPage(1);
+                        queryClient.invalidateQueries({ queryKey: ['users'] });
+                    }}>
+                        Сбросить фильтры
+                    </Button>
+                </div>
+            ) : (
+                <div className="rounded-xl border">
+                    <table className="w-full text-sm">
+                        <thead>
+                            {table.getHeaderGroups().map((hg) => (
+                                <tr key={hg.id}>
+                                    {hg.headers.map((h) => (
+                                        <th key={h.id} className="text-left p-3">
+                                            {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                                        </th>
+                                    ))}
+                                </tr>
+                            ))}
+                        </thead>
+                        <tbody>
+                            {table.getRowModel().rows.map((row) => (
+                                <tr key={row.id} className={row.original.id === selectedRowId ? 'bg-muted' : ''}>
+                                    {row.getVisibleCells().map((cell) => (
+                                        <td key={cell.id} className="p-3 border-t">
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             <div className="mt-4 flex gap-2">
                 <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })}>Reload</Button>
                 <Button onClick={() => console.log(JSON.stringify(usersQuery.data))}>Debug</Button>
             </div>
 
-            {usersQuery?.data && (
+            {usersQuery?.data && !usersQuery.isLoading && !usersQuery.error && (
                 <div className="mt-6 flex items-center justify-between">
                     <div className="text-sm text-gray-600">
                         Показано {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, usersQuery.data.total)} из {usersQuery.data.total} пользователей
