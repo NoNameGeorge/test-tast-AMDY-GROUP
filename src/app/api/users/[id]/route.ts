@@ -33,9 +33,9 @@ let mockUsers = [
 ]
 
 // GET /api/users/[id] - получить пользователя по ID
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const id = params.id
+        const { id } = await params
 
         // Имитация задержки
         await new Promise((resolve) => setTimeout(resolve, 200))
@@ -53,9 +53,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT /api/users/[id] - обновить пользователя
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const id = params.id
+        const { id } = await params
         const body = await request.json()
         const { email, role, plan } = body
 
@@ -83,9 +83,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // DELETE /api/users/[id] - удалить пользователя
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const id = params.id
+        const { id } = await params
 
         // Имитация задержки
         await new Promise((resolve) => setTimeout(resolve, 200))
