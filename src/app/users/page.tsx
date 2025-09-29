@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Pagination } from '@/components/ui/pagination';
+import { UsersTableError } from '@/components/users/UsersTableError';
+import { UsersTableLoading } from '@/components/users/UsersTableLoading';
+import { UsersTableEmpty } from '@/components/users/UsersTableEmpty';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { fetchUsers, refreshUser, deleteUser } from '@/api/users';
@@ -214,64 +217,7 @@ function UsersPageContent() {
     });
 
 
-    // Скелетон для загрузки
-    const LoadingSkeleton = () => (
-        <div className="rounded-xl border">
-            <div className="p-3 bg-gray-50">
-                <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-            </div>
-            {[...Array(5)].map((_, i) => (
-                <div key={i} className="p-3 border-t">
-                    <div className="flex space-x-4">
-                        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/6"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/6"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/6"></div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
 
-    // Компонент ошибки
-    const ErrorComponent = ({ error }: { error: any }) => {
-        const isNotFound = error?.message?.includes('404') || error?.message?.includes('not found');
-        const isServerError = error?.message?.includes('500') || error?.message?.includes('server');
-
-        return (
-            <div className="rounded-xl border p-8 text-center">
-                <div className="text-red-600 mb-4">
-                    {isNotFound ? (
-                        <>
-                            <h3 className="text-lg font-semibold mb-2">Пользователи не найдены</h3>
-                            <p className="text-sm">Попробуйте изменить параметры поиска</p>
-                        </>
-                    ) : isServerError ? (
-                        <>
-                            <h3 className="text-lg font-semibold mb-2">Что-то пошло не так</h3>
-                            <p className="text-sm">Проблема на сервере, попробуйте позже</p>
-                        </>
-                    ) : (
-                        <>
-                            <h3 className="text-lg font-semibold mb-2">Ошибка загрузки</h3>
-                            <p className="text-sm">Не удалось загрузить данные</p>
-                        </>
-                    )}
-                </div>
-                <div className="flex gap-2 justify-center">
-                    {isNotFound ? (
-                        <Button onClick={handleClearSearch}>
-                            Очистить фильтр
-                        </Button>
-                    ) : (
-                        <Button onClick={handleReload}>
-                            Попробовать еще
-                        </Button>
-                    )}
-                </div>
-            </div>
-        );
-    };
 
     return (
         <div className="p-6">
@@ -301,19 +247,15 @@ function UsersPageContent() {
             </div>
 
             {usersQuery.isLoading ? (
-                <LoadingSkeleton />
+                <UsersTableLoading />
             ) : usersQuery.error ? (
-                <ErrorComponent error={usersQuery.error} />
+                <UsersTableError
+                    error={usersQuery.error}
+                    onReload={handleReload}
+                    onClearSearch={handleClearSearch}
+                />
             ) : usersQuery.data?.users?.length === 0 ? (
-                <div className="rounded-xl border p-8 text-center">
-                    <div className="text-gray-600 mb-4">
-                        <h3 className="text-lg font-semibold mb-2">Пользователи не найдены</h3>
-                        <p className="text-sm">Попробуйте изменить параметры поиска или фильтры</p>
-                    </div>
-                    <Button onClick={handleResetFilters}>
-                        Сбросить фильтры
-                    </Button>
-                </div>
+                <UsersTableEmpty onResetFilters={handleResetFilters} />
             ) : (
                 <div className="rounded-xl border">
                     <table className="w-full text-sm">
