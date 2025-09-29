@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useUsersContext } from '@/contexts/UsersContext'
 import { fetchUsers } from '@/api/users'
 import { UsersResponse } from '@/types/api'

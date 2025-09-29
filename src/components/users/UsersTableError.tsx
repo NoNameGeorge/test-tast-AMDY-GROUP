@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 
 interface UsersTableErrorProps {
-    error: any;
+    error: Error | null;
     onReload: () => void;
     onClearSearch: () => void;
 }

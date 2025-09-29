@@ -14,7 +14,7 @@ export function useUsersActions() {
             reload: () => {
                 queryClient.invalidateQueries({ queryKey: ['users'] })
             },
-            debug: (data: any) => {
+            debug: (data: unknown) => {
                 console.log(JSON.stringify(data))
             },
             resetFilters: () => {

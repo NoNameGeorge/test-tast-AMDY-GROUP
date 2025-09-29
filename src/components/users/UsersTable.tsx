@@ -81,7 +81,7 @@ export function UsersTable() {
                 },
             }),
         ];
-    }, []);
+    }, [actions]);
 
     const data: User[] = usersQuery.data?.users || [];
 

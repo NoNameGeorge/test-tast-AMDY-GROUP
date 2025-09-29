@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
             limit,
             totalPages: Math.ceil(filteredUsers.length / limit),
         })
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Ошибка получения пользователей' }, { status: 500 })
     }
 }
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
         mockUsers.push(newUser)
 
         return NextResponse.json(newUser, { status: 201 })
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Ошибка создания пользователя' }, { status: 500 })
     }
 }
