@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useDebounce } from '@/hooks/useDebounce';
 
 type FetchUsersParams = {
     limit: number;
@@ -19,7 +20,6 @@ type SortBy = 'email' | 'createdAt' | 'role';
 type UserRole = 'admin' | 'editor' | 'viewer';
 type UserPlan = 'free' | 'pro' | 'enterprise' | null;
 
-// Константы для селектов
 const SORT_OPTIONS: { value: SortBy; label: string }[] = [
     { value: 'email', label: 'Email' },
     { value: 'createdAt', label: 'Дата создания' },
@@ -27,23 +27,6 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
 ];
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
-
-// Хук для debounce
-function useDebounce<T>(value: T, delay: number): T {
-    const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedValue(value);
-        }, delay);
-
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [value, delay]);
-
-    return debouncedValue;
-}
 
 type User = {
     id: string;
@@ -53,7 +36,6 @@ type User = {
     plan: UserPlan;
 };
 
-// Типизация ответа API
 type UsersResponse = {
     data: User[];
     total: number;
