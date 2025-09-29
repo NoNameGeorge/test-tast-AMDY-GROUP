@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useMemo } from 'react'
 import { SortBy, PageSize } from '@/types/api'
 
 interface FiltersState {
@@ -72,13 +72,13 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
         return () => clearTimeout(timer)
     }, [filters.search])
 
-    const actions = {
+    const actions = useMemo(() => ({
         setPageSize: (pageSize: PageSize) => dispatch({ type: 'SET_PAGE_SIZE', payload: pageSize }),
         setSortBy: (sortBy: SortBy) => dispatch({ type: 'SET_SORT_BY', payload: sortBy }),
         setDesc: (desc: boolean) => dispatch({ type: 'SET_DESC', payload: desc }),
         setSearch: (search: string) => dispatch({ type: 'SET_SEARCH', payload: search }),
         setCurrentPage: (page: number) => dispatch({ type: 'SET_CURRENT_PAGE', payload: page }),
-    }
+    }), [])
 
     return (
         <UsersContext.Provider value={{ filters, actions }}>

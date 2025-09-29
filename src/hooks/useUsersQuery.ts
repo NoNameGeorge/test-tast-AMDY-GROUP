@@ -6,7 +6,6 @@ import { UsersResponse } from '@/types/api'
 
 export function useUsersQuery() {
     const { filters } = useUsersContext()
-    const queryClient = useQueryClient()
 
     const queryParams = useMemo(
         () => ({
@@ -28,13 +27,8 @@ export function useUsersQuery() {
     const usersQuery = useQuery<UsersResponse>({
         queryKey: ['users', queryParams],
         queryFn: () => fetchUsers(queryParams),
-        refetchOnWindowFocus: true,
-        retry: 3,
+        retry: 1,
     })
-
-    useMemo(() => {
-        queryClient.invalidateQueries({ queryKey: ['users'] })
-    }, [queryParams, queryClient])
 
     return {
         ...usersQuery,
