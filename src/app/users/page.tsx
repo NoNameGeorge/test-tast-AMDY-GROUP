@@ -13,8 +13,9 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { fetchUsers, refreshUser, deleteUser } from '@/api/users';
 import { SortBy, PageSize, SORT_OPTIONS, PAGE_SIZE_OPTIONS, UsersResponse } from '@/types/api';
 import { User } from '@/types/user';
+import { UsersProvider } from '@/contexts/UsersContext';
 
-export default function UsersPage() {
+function UsersPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
@@ -384,5 +385,13 @@ export default function UsersPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function UsersPage() {
+    return (
+        <UsersProvider>
+            <UsersPageContent />
+        </UsersProvider>
     );
 }
