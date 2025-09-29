@@ -7,27 +7,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto p-8">
-        <h1 className="text-3xl font-bold mb-6 text-gray-900">Next.js + React Query Demo</h1>
+        <h1 className="text-3xl font-bold mb-6 text-gray-900">Test task AMDY Group</h1>
 
         <div className="space-y-4">
-          <p className="text-lg text-gray-600 mb-6">
-            Демонстрация работы с таблицами пользователей, API маршрутами и React Query.
-          </p>
-
-          {/* Тест стилей Tailwind */}
-          <div className="mb-8 p-4 bg-blue-100 border border-blue-300 rounded-lg">
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">Тест Tailwind CSS</h3>
-            <p className="text-blue-700">Если вы видите этот блок с синим фоном, то Tailwind работает!</p>
-            <div className="mt-2 flex gap-2">
-              <button className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors">
-                Кнопка
-              </button>
-              <button className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors">
-                Другая кнопка
-              </button>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
               <h2 className="text-xl font-semibold mb-4 text-gray-800">Пользователи</h2>
