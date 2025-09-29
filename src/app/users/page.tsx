@@ -53,7 +53,16 @@ type User = {
     plan: UserPlan;
 };
 
-async function fetchUsers(params: FetchUsersParams) {
+// Типизация ответа API
+type UsersResponse = {
+    data: User[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+};
+
+async function fetchUsers(params: FetchUsersParams): Promise<UsersResponse> {
     const q = new URLSearchParams({
         limit: params.limit.toString(),
         search: params.search,
@@ -104,7 +113,7 @@ export default function UsersPage() {
         router.replace(`/users?${newSearchParams.toString()}`, { scroll: false });
     };
 
-    const usersQuery = useQuery({
+    const usersQuery = useQuery<UsersResponse>({
         queryKey: ['users', { limit: pageSize, search: debouncedSearch, sortBy, desc, page: currentPage }],
         queryFn: () => fetchUsers({ limit: pageSize, search: debouncedSearch, sortBy, desc }),
         refetchOnWindowFocus: true,
