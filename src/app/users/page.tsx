@@ -21,13 +21,8 @@ function UsersPageContent() {
     const queryClient = useQueryClient();
     const { filters, actions } = useUsersContext();
 
-    const [search, setSearch] = useState(() => searchParams.get('search') || '');
-    const [currentPage, setCurrentPage] = useState(() => parseInt(searchParams.get('page') || '1'));
-
-    const debouncedSearch = useDebounce(search, 300);
-
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearch(e.target.value);
+        actions.setSearch(e.target.value);
     };
 
     const handleSortByChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -51,8 +46,8 @@ function UsersPageContent() {
     };
 
     const handleResetFilters = () => {
-        setSearch('');
-        setCurrentPage(1);
+        actions.setSearch('');
+        actions.setCurrentPage(1);
         actions.setSortBy('email');
         actions.setDesc(false);
         actions.setPageSize(20);
@@ -61,15 +56,15 @@ function UsersPageContent() {
     };
 
     const handleClearSearch = () => {
-        setSearch('');
+        actions.setSearch('');
     };
 
     const handlePreviousPage = () => {
-        setCurrentPage(prev => Math.max(prev - 1, 1));
+        actions.setCurrentPage(Math.max(filters.currentPage - 1, 1));
     };
 
     const handleNextPage = () => {
-        setCurrentPage(prev => Math.min(prev + 1, usersQuery.data?.totalPages || 1));
+        actions.setCurrentPage(Math.min(filters.currentPage + 1, usersQuery.data?.totalPages || 1));
     };
 
     const handleRefreshUser = async (userId: string) => {
@@ -92,11 +87,11 @@ function UsersPageContent() {
 
     const queryParams = React.useMemo(() => ({
         limit: filters.pageSize,
-        search: debouncedSearch,
+        search: filters.debouncedSearch,
         sortBy: filters.sortBy,
         desc: filters.desc,
-        page: currentPage
-    }), [filters.pageSize, debouncedSearch, filters.sortBy, filters.desc, currentPage]);
+        page: filters.currentPage
+    }), [filters.pageSize, filters.debouncedSearch, filters.sortBy, filters.desc, filters.currentPage]);
 
     const updateURL = (params: {
         search?: string;
@@ -128,11 +123,11 @@ function UsersPageContent() {
 
     useEffect(() => {
         queryClient.invalidateQueries({ queryKey: ['users'] });
-    }, [queryParams, currentPage, queryClient]);
+    }, [queryParams, filters.currentPage, queryClient]);
 
     useEffect(() => {
-        updateURL({ search: debouncedSearch });
-    }, [debouncedSearch]);
+        updateURL({ search: filters.debouncedSearch });
+    }, [filters.debouncedSearch]);
 
     useEffect(() => {
         updateURL({ sortBy: filters.sortBy, desc: filters.desc });
@@ -143,8 +138,8 @@ function UsersPageContent() {
     }, [filters.pageSize]);
 
     useEffect(() => {
-        updateURL({ page: currentPage });
-    }, [currentPage]);
+        updateURL({ page: filters.currentPage });
+    }, [filters.currentPage]);
 
     const columns = React.useMemo(() => {
         const columnHelper = createColumnHelper<User>();
@@ -283,7 +278,7 @@ function UsersPageContent() {
             <div className="mb-4 flex items-center gap-2">
                 <Input
                     placeholder="Поиск по email"
-                    value={search}
+                    value={filters.search}
                     onChange={handleSearchChange}
                     className="w-64"
                 />
@@ -356,21 +351,21 @@ function UsersPageContent() {
             {usersQuery?.data && !usersQuery.isLoading && !usersQuery.error && (
                 <div className="mt-6 flex items-center justify-between">
                     <div className="text-sm text-gray-600">
-                        Показано {((currentPage - 1) * filters.pageSize) + 1}-{Math.min(currentPage * filters.pageSize, usersQuery.data.total)} из {usersQuery.data.total} пользователей
+                        Показано {((filters.currentPage - 1) * filters.pageSize) + 1}-{Math.min(filters.currentPage * filters.pageSize, usersQuery.data.total)} из {usersQuery.data.total} пользователей
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
                             onClick={handlePreviousPage}
-                            disabled={currentPage === 1}
+                            disabled={filters.currentPage === 1}
                         >
                             Назад
                         </Button>
                         <span className="px-3 py-1 text-sm">
-                            Страница {currentPage} из {usersQuery.data.totalPages}
+                            Страница {filters.currentPage} из {usersQuery.data.totalPages}
                         </span>
                         <Button
                             onClick={handleNextPage}
-                            disabled={currentPage >= usersQuery.data.totalPages}
+                            disabled={filters.currentPage >= usersQuery.data.totalPages}
                         >
                             Вперед
                         </Button>
