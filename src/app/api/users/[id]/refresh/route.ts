@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             userId: id,
             timestamp: new Date().toISOString(),
         })
-    } catch (error) {
+    } catch {
         return NextResponse.json(
             { error: 'Ошибка обновления данных пользователя' },
             { status: 500 }

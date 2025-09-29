@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         }
 
         return NextResponse.json(user)
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Ошибка получения пользователя' }, { status: 500 })
     }
 }
@@ -77,7 +77,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         }
 
         return NextResponse.json(mockUsers[userIndex])
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Ошибка обновления пользователя' }, { status: 500 })
     }
 }
@@ -103,7 +103,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
             message: 'Пользователь удален',
             user: deletedUser,
         })
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Ошибка удаления пользователя' }, { status: 500 })
     }
 }
