@@ -61,26 +61,27 @@ export default function UsersPage() {
     const [sortBy, setSortBy] = useState<'email' | 'createdAt' | 'role'>('email');
     const [desc, setDesc] = useState(false);
     const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
     const queryClient = useQueryClient();
 
     // Debounce для поиска
     const debouncedSearch = useDebounce(search, 300);
 
     const usersQuery = useQuery({
-        queryKey: ['users', { limit: pageSize, search: debouncedSearch, sortBy, desc }],
+        queryKey: ['users', { limit: pageSize, search: debouncedSearch, sortBy, desc, page: currentPage }],
         queryFn: () => fetchUsers({ limit: pageSize, search: debouncedSearch, sortBy, desc }),
         refetchOnWindowFocus: true,
         retry: 3,
-        onSuccess: (payload: any) => {
-            if (payload?.data?.length === 1) {
-                setSelectedRowId(payload.data[0].id);
-            }
-        },
+        // onSuccess: (payload: any) => {
+        //     if (payload?.data?.length === 1) {
+        //         setSelectedRowId(payload.data[0].id);
+        //     }
+        // },
     });
 
     useEffect(() => {
         queryClient.invalidateQueries({ queryKey: ['users'] });
-    }, [debouncedSearch, sortBy, desc, pageSize, queryClient]);
+    }, [debouncedSearch, sortBy, desc, pageSize, currentPage, queryClient]);
 
     const columnHelper = createColumnHelper<User>();
     const columns = [
@@ -123,7 +124,11 @@ export default function UsersPage() {
                         >
                             Refresh
                         </Button>
-                        <Button variant="destructive" onClick={() => fetch('/api/users/' + user.id, { method: 'DELETE' })}>
+                        <Button
+                            variant="destructive"
+                            onClick={() => fetch('/api/users/' + user.id, { method: 'DELETE' })}
+                            disabled={!canEdit}
+                        >
                             Delete
                         </Button>
                     </div>
@@ -202,8 +207,33 @@ export default function UsersPage() {
 
             <div className="mt-4 flex gap-2">
                 <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })}>Reload</Button>
-                <Button onClick={() => alert(JSON.stringify(usersQuery.data))}>Debug</Button>
+                <Button onClick={() => console.log(JSON.stringify(usersQuery.data))}>Debug</Button>
             </div>
+
+            {usersQuery?.data && (
+                <div className="mt-6 flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                        Показано {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, usersQuery.data.total)} из {usersQuery.data.total} пользователей
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                        >
+                            Назад
+                        </Button>
+                        <span className="px-3 py-1 text-sm">
+                            Страница {currentPage} из {usersQuery.data.totalPages}
+                        </span>
+                        <Button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, usersQuery.data.totalPages))}
+                            disabled={currentPage >= usersQuery.data.totalPages}
+                        >
+                            Вперед
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
