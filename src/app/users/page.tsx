@@ -13,22 +13,15 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { fetchUsers, refreshUser, deleteUser } from '@/api/users';
 import { SortBy, PageSize, SORT_OPTIONS, PAGE_SIZE_OPTIONS, UsersResponse } from '@/types/api';
 import { User } from '@/types/user';
-import { UsersProvider } from '@/contexts/UsersContext';
+import { UsersProvider, useUsersContext } from '@/contexts/UsersContext';
 
 function UsersPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
+    const { filters, actions } = useUsersContext();
 
-    const [pageSize, setPageSize] = useState<PageSize>(() => {
-        const limit = parseInt(searchParams.get('limit') || '20');
-        return PAGE_SIZE_OPTIONS.includes(limit as PageSize) ? (limit as PageSize) : 20;
-    });
     const [search, setSearch] = useState(() => searchParams.get('search') || '');
-    const [sortBy, setSortBy] = useState<SortBy>(() =>
-        (searchParams.get('sortBy') as SortBy) || 'email'
-    );
-    const [desc, setDesc] = useState(() => searchParams.get('desc') === 'true');
     const [currentPage, setCurrentPage] = useState(() => parseInt(searchParams.get('page') || '1'));
 
     const debouncedSearch = useDebounce(search, 300);
@@ -38,15 +31,15 @@ function UsersPageContent() {
     };
 
     const handleSortByChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setSortBy(e.target.value as SortBy);
+        actions.setSortBy(e.target.value as SortBy);
     };
 
     const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setPageSize(Number(e.target.value) as PageSize);
+        actions.setPageSize(Number(e.target.value) as PageSize);
     };
 
     const handleSortDirectionToggle = () => {
-        setDesc((d) => !d);
+        actions.setDesc(!filters.desc);
     };
 
     const handleReload = () => {
@@ -60,9 +53,9 @@ function UsersPageContent() {
     const handleResetFilters = () => {
         setSearch('');
         setCurrentPage(1);
-        setSortBy('email');
-        setDesc(false);
-        setPageSize(20);
+        actions.setSortBy('email');
+        actions.setDesc(false);
+        actions.setPageSize(20);
         queryClient.invalidateQueries({ queryKey: ['users'] });
         router.replace('/users', { scroll: false });
     };
@@ -98,12 +91,12 @@ function UsersPageContent() {
     };
 
     const queryParams = React.useMemo(() => ({
-        limit: pageSize,
+        limit: filters.pageSize,
         search: debouncedSearch,
-        sortBy,
-        desc,
+        sortBy: filters.sortBy,
+        desc: filters.desc,
         page: currentPage
-    }), [pageSize, debouncedSearch, sortBy, desc, currentPage]);
+    }), [filters.pageSize, debouncedSearch, filters.sortBy, filters.desc, currentPage]);
 
     const updateURL = (params: {
         search?: string;
@@ -142,12 +135,12 @@ function UsersPageContent() {
     }, [debouncedSearch]);
 
     useEffect(() => {
-        updateURL({ sortBy, desc });
-    }, [sortBy, desc]);
+        updateURL({ sortBy: filters.sortBy, desc: filters.desc });
+    }, [filters.sortBy, filters.desc]);
 
     useEffect(() => {
-        updateURL({ pageSize });
-    }, [pageSize]);
+        updateURL({ pageSize: filters.pageSize });
+    }, [filters.pageSize]);
 
     useEffect(() => {
         updateURL({ page: currentPage });
@@ -295,15 +288,15 @@ function UsersPageContent() {
                     className="w-64"
                 />
                 <Select
-                    value={sortBy}
+                    value={filters.sortBy}
                     onChange={handleSortByChange}
                     options={SORT_OPTIONS}
                 />
                 <Button onClick={handleSortDirectionToggle}>
-                    {desc ? '↓ По убыванию' : '↑ По возрастанию'}
+                    {filters.desc ? '↓ По убыванию' : '↑ По возрастанию'}
                 </Button>
                 <Select
-                    value={pageSize.toString()}
+                    value={filters.pageSize.toString()}
                     onChange={handlePageSizeChange}
                     options={PAGE_SIZE_OPTIONS.map(size => ({
                         value: size.toString(),
@@ -363,7 +356,7 @@ function UsersPageContent() {
             {usersQuery?.data && !usersQuery.isLoading && !usersQuery.error && (
                 <div className="mt-6 flex items-center justify-between">
                     <div className="text-sm text-gray-600">
-                        Показано {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, usersQuery.data.total)} из {usersQuery.data.total} пользователей
+                        Показано {((currentPage - 1) * filters.pageSize) + 1}-{Math.min(currentPage * filters.pageSize, usersQuery.data.total)} из {usersQuery.data.total} пользователей
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
