@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { createColumnHelper, useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -78,6 +80,79 @@ export default function UsersPage() {
 
     const debouncedSearch = useDebounce(search, 300);
 
+    // Обработчики событий
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearch(e.target.value);
+    };
+
+    const handleSortByChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSortBy(e.target.value as SortBy);
+    };
+
+    const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setPageSize(Number(e.target.value) as PageSize);
+    };
+
+    const handleSortDirectionToggle = () => {
+        setDesc((d) => !d);
+    };
+
+    const handleReload = () => {
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+    };
+
+    const handleDebug = () => {
+        console.log(JSON.stringify(usersQuery.data));
+    };
+
+    const handleResetFilters = () => {
+        setSearch('');
+        setCurrentPage(1);
+        setSortBy('email');
+        setDesc(false);
+        setPageSize(20);
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+        router.replace('/users', { scroll: false });
+    };
+
+    const handleClearSearch = () => {
+        setSearch('');
+    };
+
+    const handlePreviousPage = () => {
+        setCurrentPage(prev => Math.max(prev - 1, 1));
+    };
+
+    const handleNextPage = () => {
+        setCurrentPage(prev => Math.min(prev + 1, usersQuery.data?.totalPages || 1));
+    };
+
+    const handleRefreshUser = async (userId: string) => {
+        try {
+            await fetch(`/api/users/${userId}/refresh`, { method: 'POST' });
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+        } catch (error) {
+            console.error('Ошибка при обновлении пользователя:', error);
+        }
+    };
+
+    const handleDeleteUser = async (userId: string) => {
+        try {
+            await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+        } catch (error) {
+            console.error('Ошибка при удалении пользователя:', error);
+        }
+    };
+
+    // Мемоизированные параметры запроса
+    const queryParams = React.useMemo(() => ({
+        limit: pageSize,
+        search: debouncedSearch,
+        sortBy,
+        desc
+    }), [pageSize, debouncedSearch, sortBy, desc]);
+
     const updateURL = (params: {
         search?: string;
         sortBy?: string;
@@ -100,17 +175,16 @@ export default function UsersPage() {
     };
 
     const usersQuery = useQuery<UsersResponse>({
-        queryKey: ['users', { limit: pageSize, search: debouncedSearch, sortBy, desc, page: currentPage }],
-        queryFn: () => fetchUsers({ limit: pageSize, search: debouncedSearch, sortBy, desc }),
+        queryKey: ['users', { ...queryParams, page: currentPage }],
+        queryFn: () => fetchUsers(queryParams),
         refetchOnWindowFocus: true,
         retry: 3,
     });
 
     useEffect(() => {
         queryClient.invalidateQueries({ queryKey: ['users'] });
-    }, [debouncedSearch, sortBy, desc, pageSize, currentPage, queryClient]);
+    }, [queryParams, currentPage, queryClient]);
 
-    // Обновление URL при изменении параметров
     useEffect(() => {
         updateURL({ search: debouncedSearch });
     }, [debouncedSearch]);
@@ -127,70 +201,68 @@ export default function UsersPage() {
         updateURL({ page: currentPage });
     }, [currentPage]);
 
-    const columnHelper = createColumnHelper<User>();
-    const columns = [
-        columnHelper.accessor('email', {
-            header: () => <span>Email</span>,
-            cell: (info) => {
-                const u = info.row.original;
-                return (
-                    <div>
-                        <Link href={`/users/${u.id}`} className="text-blue-600 hover:underline">
-                            {u.email}
-                        </Link>
-                        <div className="text-sm text-gray-500">{new Date(u.createdAt).toLocaleString()}</div>
-                    </div>
-                );
-            },
-        }),
-        columnHelper.accessor('role', {
-            header: 'Role',
-            cell: (info) => <span>{info.getValue()}</span>,
-        }),
-        columnHelper.accessor('plan', {
-            header: 'Plan',
-            cell: (info) => {
-                const plan = info.getValue();
-                return plan ? (
-                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">
-                        {plan}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">—</span>
-                );
-            },
-        }),
-        columnHelper.display({
-            id: 'actions',
-            header: 'Actions',
-            cell: (info) => {
-                const user = info.row.original;
-                const canEdit = user.role !== 'admin';
-                return (
-                    <div className="flex gap-2">
-                        <Button
-                            onClick={async () => {
-                                const res = await fetch('/api/users/' + user.id + '/refresh', { method: 'POST' });
-                                if (res.ok) {
-                                    queryClient.invalidateQueries({ queryKey: ['users'] });
-                                }
-                            }}
-                            disabled={!canEdit}
-                        >
-                            Refresh
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={() => fetch('/api/users/' + user.id, { method: 'DELETE' })}
-                            disabled={!canEdit}
-                        >
-                            Delete
-                        </Button>
-                    </div>
-                );
-            },
-        }),
-    ];
+    const columns = React.useMemo(() => {
+        const columnHelper = createColumnHelper<User>();
+
+        return [
+            columnHelper.accessor('email', {
+                header: () => <span>Email</span>,
+                cell: (info) => {
+                    const u = info.row.original;
+                    return (
+                        <div>
+                            <Link href={`/users/${u.id}`} className="text-blue-600 hover:underline">
+                                {u.email}
+                            </Link>
+                            <div className="text-sm text-gray-500">{new Date(u.createdAt).toLocaleString()}</div>
+                        </div>
+                    );
+                },
+            }),
+            columnHelper.accessor('role', {
+                header: 'Role',
+                cell: (info) => <span>{info.getValue()}</span>,
+            }),
+            columnHelper.accessor('plan', {
+                header: 'Plan',
+                cell: (info) => {
+                    const plan = info.getValue();
+                    return plan ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">
+                            {plan}
+                        </span>
+                    ) : (
+                        <span className="text-gray-400">—</span>
+                    );
+                },
+            }),
+            columnHelper.display({
+                id: 'actions',
+                header: 'Actions',
+                cell: (info) => {
+                    const user = info.row.original;
+                    const canEdit = user.role !== 'admin';
+                    return (
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => handleRefreshUser(user.id)}
+                                disabled={!canEdit}
+                            >
+                                Refresh
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={() => handleDeleteUser(user.id)}
+                                disabled={!canEdit}
+                            >
+                                Delete
+                            </Button>
+                        </div>
+                    );
+                },
+            }),
+        ];
+    }, [queryClient]);
 
     const data: User[] = usersQuery.data?.data || [];
 
@@ -248,11 +320,11 @@ export default function UsersPage() {
                 </div>
                 <div className="flex gap-2 justify-center">
                     {isNotFound ? (
-                        <Button onClick={() => setSearch('')}>
+                        <Button onClick={handleClearSearch}>
                             Очистить фильтр
                         </Button>
                     ) : (
-                        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })}>
+                        <Button onClick={handleReload}>
                             Попробовать еще
                         </Button>
                     )}
@@ -264,35 +336,28 @@ export default function UsersPage() {
     return (
         <div className="p-6">
             <div className="mb-4 flex items-center gap-2">
-                <input
-                    placeholder="Search email"
+                <Input
+                    placeholder="Поиск по email"
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="border px-3 py-2 rounded-md w-64"
+                    onChange={handleSearchChange}
+                    className="w-64"
                 />
-                <select
+                <Select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortBy)}
-                    className="border px-2 py-2 rounded-md"
-                >
-                    {SORT_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
-                <Button onClick={() => setDesc((d) => !d)}>{desc ? 'Desc' : 'Asc'}</Button>
-                <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value) as PageSize)}
-                    className="border px-2 py-2 rounded-md"
-                >
-                    {PAGE_SIZE_OPTIONS.map((size) => (
-                        <option key={size} value={size}>
-                            {size}/страница
-                        </option>
-                    ))}
-                </select>
+                    onChange={handleSortByChange}
+                    options={SORT_OPTIONS}
+                />
+                <Button onClick={handleSortDirectionToggle}>
+                    {desc ? '↓ По убыванию' : '↑ По возрастанию'}
+                </Button>
+                <Select
+                    value={pageSize.toString()}
+                    onChange={handlePageSizeChange}
+                    options={PAGE_SIZE_OPTIONS.map(size => ({
+                        value: size.toString(),
+                        label: `${size}/страница`
+                    }))}
+                />
             </div>
 
             {usersQuery.isLoading ? (
@@ -305,15 +370,7 @@ export default function UsersPage() {
                         <h3 className="text-lg font-semibold mb-2">Пользователи не найдены</h3>
                         <p className="text-sm">Попробуйте изменить параметры поиска или фильтры</p>
                     </div>
-                    <Button onClick={() => {
-                        setSearch('');
-                        setCurrentPage(1);
-                        setSortBy('email');
-                        setDesc(false);
-                        setPageSize(20);
-                        queryClient.invalidateQueries({ queryKey: ['users'] });
-                        router.replace('/users', { scroll: false });
-                    }}>
+                    <Button onClick={handleResetFilters}>
                         Сбросить фильтры
                     </Button>
                 </div>
@@ -347,8 +404,8 @@ export default function UsersPage() {
             )}
 
             <div className="mt-4 flex gap-2">
-                <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })}>Reload</Button>
-                <Button onClick={() => console.log(JSON.stringify(usersQuery.data))}>Debug</Button>
+                <Button onClick={handleReload}>Reload</Button>
+                <Button onClick={handleDebug}>Debug</Button>
             </div>
 
             {usersQuery?.data && !usersQuery.isLoading && !usersQuery.error && (
@@ -358,7 +415,7 @@ export default function UsersPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            onClick={handlePreviousPage}
                             disabled={currentPage === 1}
                         >
                             Назад
@@ -367,7 +424,7 @@ export default function UsersPage() {
                             Страница {currentPage} из {usersQuery.data.totalPages}
                         </span>
                         <Button
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, usersQuery.data.totalPages))}
+                            onClick={handleNextPage}
                             disabled={currentPage >= usersQuery.data.totalPages}
                         >
                             Вперед
