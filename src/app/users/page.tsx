@@ -19,6 +19,15 @@ type SortBy = 'email' | 'createdAt' | 'role';
 type UserRole = 'admin' | 'editor' | 'viewer';
 type UserPlan = 'free' | 'pro' | 'enterprise' | null;
 
+// Константы для селектов
+const SORT_OPTIONS: { value: SortBy; label: string }[] = [
+    { value: 'email', label: 'Email' },
+    { value: 'createdAt', label: 'Дата создания' },
+    { value: 'role', label: 'Роль' }
+];
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
+
 // Хук для debounce
 function useDebounce<T>(value: T, delay: number): T {
     const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -197,7 +206,6 @@ export default function UsersPage() {
         debugTable: process.env.NODE_ENV !== 'production',
     });
 
-    const isTouch = typeof window !== 'undefined' && 'ontouchstart' in window;
 
     // Скелетон для загрузки
     const LoadingSkeleton = () => (
@@ -267,18 +275,29 @@ export default function UsersPage() {
                     onChange={(e) => setSearch(e.target.value)}
                     className="border px-3 py-2 rounded-md w-64"
                 />
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="border px-2 py-2 rounded-md">
-                    <option value="email">Email</option>
-                    <option value="createdAt">Created</option>
-                    <option value="role">Role</option>
-                </select>
-                <Button onClick={() => setDesc((d) => !d)}>{desc ? 'Desc' : 'Asc'}</Button>
-                <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="border px-2 py-2 rounded-md">
-                    {[10, 20, 50].map((n) => (
-                        <option key={n} value={n}>{n}/page</option>
+                <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortBy)}
+                    className="border px-2 py-2 rounded-md"
+                >
+                    {SORT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
                     ))}
                 </select>
-                {isTouch && <span className="text-xs opacity-60">Touch mode</span>}
+                <Button onClick={() => setDesc((d) => !d)}>{desc ? 'Desc' : 'Asc'}</Button>
+                <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="border px-2 py-2 rounded-md"
+                >
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                        <option key={size} value={size}>
+                            {size}/страница
+                        </option>
+                    ))}
+                </select>
             </div>
 
             {usersQuery.isLoading ? (
