@@ -10,57 +10,9 @@ import { Select } from '@/components/ui/select';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDebounce } from '@/hooks/useDebounce';
-
-type FetchUsersParams = {
-    limit: PageSize;
-    search: string;
-    sortBy: SortBy;
-    desc: boolean;
-};
-
-type SortBy = 'email' | 'createdAt' | 'role';
-type UserRole = 'admin' | 'editor' | 'viewer';
-type UserPlan = 'free' | 'pro' | 'enterprise' | null;
-
-const SORT_OPTIONS: { value: SortBy; label: string }[] = [
-    { value: 'email', label: 'Email' },
-    { value: 'createdAt', label: 'Дата создания' },
-    { value: 'role', label: 'Роль' }
-];
-
-const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
-type PageSize = typeof PAGE_SIZE_OPTIONS[number];
-
-type User = {
-    id: string;
-    email: string;
-    role: UserRole;
-    createdAt: string;
-    plan: UserPlan;
-};
-
-type UsersResponse = {
-    data: User[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-};
-
-async function fetchUsers(params: FetchUsersParams): Promise<UsersResponse> {
-    const q = new URLSearchParams({
-        limit: params.limit.toString(),
-        search: params.search,
-        sortBy: params.sortBy,
-        desc: params.desc.toString()
-    }).toString();
-
-    const res = await fetch('/api/users?' + q, { cache: 'no-store' });
-    if (!res.ok) {
-        throw new Error('Failed to load');
-    }
-    return res.json();
-}
+import { fetchUsers, refreshUser, deleteUser } from '@/api/users';
+import { SortBy, PageSize, SORT_OPTIONS, PAGE_SIZE_OPTIONS, UsersResponse } from '@/types/api';
+import { User } from '@/types/user';
 
 export default function UsersPage() {
     const router = useRouter();
@@ -80,7 +32,6 @@ export default function UsersPage() {
 
     const debouncedSearch = useDebounce(search, 300);
 
-    // Обработчики событий
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearch(e.target.value);
     };
@@ -129,7 +80,7 @@ export default function UsersPage() {
 
     const handleRefreshUser = async (userId: string) => {
         try {
-            await fetch(`/api/users/${userId}/refresh`, { method: 'POST' });
+            await refreshUser(userId);
             queryClient.invalidateQueries({ queryKey: ['users'] });
         } catch (error) {
             console.error('Ошибка при обновлении пользователя:', error);
@@ -138,20 +89,20 @@ export default function UsersPage() {
 
     const handleDeleteUser = async (userId: string) => {
         try {
-            await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+            await deleteUser(userId);
             queryClient.invalidateQueries({ queryKey: ['users'] });
         } catch (error) {
             console.error('Ошибка при удалении пользователя:', error);
         }
     };
 
-    // Мемоизированные параметры запроса
     const queryParams = React.useMemo(() => ({
         limit: pageSize,
         search: debouncedSearch,
         sortBy,
-        desc
-    }), [pageSize, debouncedSearch, sortBy, desc]);
+        desc,
+        page: currentPage
+    }), [pageSize, debouncedSearch, sortBy, desc, currentPage]);
 
     const updateURL = (params: {
         search?: string;
@@ -175,7 +126,7 @@ export default function UsersPage() {
     };
 
     const usersQuery = useQuery<UsersResponse>({
-        queryKey: ['users', { ...queryParams, page: currentPage }],
+        queryKey: ['users', queryParams],
         queryFn: () => fetchUsers(queryParams),
         refetchOnWindowFocus: true,
         retry: 3,
@@ -264,7 +215,7 @@ export default function UsersPage() {
         ];
     }, [queryClient]);
 
-    const data: User[] = usersQuery.data?.data || [];
+    const data: User[] = usersQuery.data?.users || [];
 
     const table = useReactTable({
         data,
@@ -364,7 +315,7 @@ export default function UsersPage() {
                 <LoadingSkeleton />
             ) : usersQuery.error ? (
                 <ErrorComponent error={usersQuery.error} />
-            ) : usersQuery.data?.data?.length === 0 ? (
+            ) : usersQuery.data?.users?.length === 0 ? (
                 <div className="rounded-xl border p-8 text-center">
                     <div className="text-gray-600 mb-4">
                         <h3 className="text-lg font-semibold mb-2">Пользователи не найдены</h3>
